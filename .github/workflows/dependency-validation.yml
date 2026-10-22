@@ -52,14 +52,38 @@ jobs:
           assert Image.new("RGBA", (16, 16)).size == (16, 16)
           assert Icon and Menu and MenuItem
 
-          assembly = Path("src/core/assets/LHM_0.9.4_lib/net472/LibreHardwareMonitorLib.dll").resolve()
-          clr.AddReference(str(assembly))
-          from LibreHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+          sys.path.insert(0, str(Path("src").resolve()))
+          from core.lhm_loader import ensure_loaded, get_types
+          from tempfile import TemporaryDirectory
+          with TemporaryDirectory() as empty:
+              try:
+                  ensure_loaded(empty)
+              except FileNotFoundError:
+                  pass
+              else:
+                  raise AssertionError("Missing bundled hardware library was accepted")
+          Computer, SensorType, HardwareType = ensure_loaded()
+          assert get_types() == (Computer, SensorType, HardwareType)
+          assembly = clr.GetClrType(Computer).Assembly
+          assert assembly.GetName().Version.ToString().startswith("0.9.6")
           computer = Computer()
           computer.IsCpuEnabled = True
           computer.IsGpuEnabled = True
           assert computer.IsCpuEnabled and computer.IsGpuEnabled
-          assert SensorType.Load is not None and HardwareType.Cpu is not None
+          for member in ("Hardware", "IsCpuEnabled", "IsGpuEnabled"):
+              assert clr.GetClrType(Computer).GetProperty(member) is not None, member
+          for method in ("Open", "Close"):
+              assert clr.GetClrType(Computer).GetMethod(method) is not None, method
+          from LibreHardwareMonitor.Hardware import IHardware, ISensor
+          for member in ("Name", "HardwareType", "Sensors", "SubHardware"):
+              assert clr.GetClrType(IHardware).GetProperty(member) is not None, member
+          assert clr.GetClrType(IHardware).GetMethod("Update") is not None
+          for member in ("Name", "SensorType", "Value"):
+              assert clr.GetClrType(ISensor).GetProperty(member) is not None, member
+          for member in ("Load", "Power", "Temperature"):
+              assert getattr(SensorType, member) is not None
+          for member in ("Cpu", "GpuAmd", "GpuNvidia"):
+              assert getattr(HardwareType, member) is not None
           print(f"Checked {len(sources)} source files and {len(required)} DearPyGui APIs; native dependencies load.")
       - name: Build the Windows executable
         run: python src/__main__.py --build
@@ -69,5 +93,10 @@ jobs:
           from pathlib import Path
           bundle = Path("output/dist/DynamicFPSLimiter")
           assert (bundle / "DynamicFPSLimiter.exe").is_file()
-          assert list(bundle.rglob("LibreHardwareMonitorLib.dll"))
+          import json
+          manifest = json.loads(Path("src/core/assets/LHM_0.9.6_lib/UPSTREAM.json").read_text())
+          for name, digest in manifest["files"].items():
+              import hashlib
+              copies = list(bundle.rglob(name))
+              assert any(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path in copies), name
           print("Windows executable and LibreHardwareMonitor assets packaged successfully.")

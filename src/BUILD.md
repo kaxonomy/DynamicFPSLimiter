@@ -4,7 +4,9 @@
 
 ### Prerequisites
 1. Install 64-bit CPython 3.12, 3.13, or 3.14 on Windows. NumPy requires Python 3.12 or newer; these versions also have DearPyGui Windows wheels.
-2. Install pip if not already installed:
+2. Install .NET Framework 4.7.2 or newer. Supported Windows 10 and Windows 11 installations normally include a compatible version. The bundled hardware library uses the .NET Framework runtime through pythonnet.
+3. Install [PawnIO](https://github.com/namazso/PawnIO) for low-level CPU and motherboard sensors. Driver installation is separate and requires administrator approval; the app does not install it. Legacy monitoring remains available without it.
+4. Install pip if not already installed:
    ```cmd
    python -m ensurepip --default-pip
    ```
