@@ -1,0 +1,73 @@
+name: Dependency validation
+
+on:
+  push:
+    branches: ["dependency-validation-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: src/requirements.txt
+      - run: python -m pip install -r src/requirements.txt
+      - run: python -m pip check
+      - name: Check native library APIs and source syntax
+        shell: python
+        run: |
+          import ast
+          import sys
+          from pathlib import Path
+          import dearpygui.dearpygui as dpg
+          import numpy as np
+          import psutil
+          from PIL import Image
+          from pystray import Icon, Menu, MenuItem
+          import clr
+
+          # This file contains unused indented examples, rather than executable Python.
+          sources = [p for p in Path("src").rglob("*.py") if p.name != "backup_snippets.py"]
+          required = set()
+          for path in sources:
+              tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+              required.update(node.attr for node in ast.walk(tree)
+                              if isinstance(node, ast.Attribute)
+                              and isinstance(node.value, ast.Name) and node.value.id == "dpg")
+          missing = sorted(name for name in required if not hasattr(dpg, name))
+          assert not missing, f"DearPyGui APIs removed: {missing}"
+          dpg.create_context()
+          dpg.destroy_context()
+          assert np.isclose(np.percentile([10, 20, 30], 70), 24)
+          assert psutil.cpu_percent(percpu=True)
+          assert next(psutil.process_iter(["name"])).info["name"]
+          assert Image.new("RGBA", (16, 16)).size == (16, 16)
+          assert Icon and Menu and MenuItem
+
+          assembly = Path("src/core/assets/LHM_0.9.4_lib/net472/LibreHardwareMonitorLib.dll").resolve()
+          clr.AddReference(str(assembly))
+          from LibreHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+          computer = Computer()
+          computer.IsCpuEnabled = True
+          computer.IsGpuEnabled = True
+          assert computer.IsCpuEnabled and computer.IsGpuEnabled
+          assert SensorType.Load is not None and HardwareType.Cpu is not None
+          print(f"Checked {len(sources)} source files and {len(required)} DearPyGui APIs; native dependencies load.")
+      - name: Build the Windows executable
+        run: python src/__main__.py --build
+      - name: Verify the packaged executable and hardware library
+        shell: python
+        run: |
+          from pathlib import Path
+          bundle = Path("output/dist/DynamicFPSLimiter")
+          assert (bundle / "DynamicFPSLimiter.exe").is_file()
+          assert list(bundle.rglob("LibreHardwareMonitorLib.dll"))
+          print("Windows executable and LibreHardwareMonitor assets packaged successfully.")

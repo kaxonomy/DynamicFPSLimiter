@@ -3,7 +3,7 @@
 ## Installation
 
 ### Prerequisites
-1. Ensure Python is installed on your system (Python 3)
+1. Install 64-bit CPython 3.12, 3.13, or 3.14 on Windows. NumPy requires Python 3.12 or newer; these versions also have DearPyGui Windows wheels.
 2. Install pip if not already installed:
    ```cmd
    python -m ensurepip --default-pip

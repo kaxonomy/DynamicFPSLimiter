@@ -1,6 +1,6 @@
-dearpygui==2.0.0
-psutil==7.0.0
-pyinstaller==6.13.0
+dearpygui==2.3.1
+psutil==7.2.2
+pyinstaller==6.22.3
 pystray==0.19.5
-pythonnet==3.0.5
-numpy==2.1.3
+pythonnet==3.2.1
+numpy==2.5.4
