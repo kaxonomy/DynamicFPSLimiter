@@ -206,16 +206,8 @@ def hide_loading_popup():
     Call this before creating the main application context/viewport.
     """
     try:
-        # destroy viewport if present
-        try:
-            dpg.destroy_viewport()
-        except Exception:
-            pass
-        # destroy context
-        try:
-            dpg.destroy_context()
-        except Exception:
-            pass
+        # DearPyGui releases the viewport with its context.
+        dpg.destroy_context()
     except Exception:
         pass
 
